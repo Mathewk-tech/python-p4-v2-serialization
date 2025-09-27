@@ -1,25 +1,36 @@
-# server/app.py
-#!/usr/bin/env python3
+from flask import Flask, jsonify
+from flask_sqlalchemy import SQLAlchemy
 
-from flask import Flask, make_response
-from flask_migrate import Migrate
+# Create the SQLAlchemy object (no app yet)
+db = SQLAlchemy()
 
-from models import db, Pet
+def create_app():
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.json.compact = False
+    # Initialize db with this app
+    db.init_app(app)
 
-migrate = Migrate(app, db)
-db.init_app(app)
+    # Import models so SQLAlchemy knows them
+    from models import Pet
 
+    # Create tables if not exist
+    with app.app_context():
+        db.create_all()
 
-@app.route('/')
-def index():
-    body = {'message': 'Welcome to the pet directory!'}
-    return make_response(body, 200)
+    # Example route
+    @app.route('/pets/<int:id>')
+    def get_pet(id):
+        pet = Pet.query.get_or_404(id)
+        return {
+            "id": pet.id,
+            "name": pet.name,
+            "species": pet.species,
+            "age": pet.age
+        }
 
+    return app
 
-if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+# This will be imported by seed.py
+app = create_app()
